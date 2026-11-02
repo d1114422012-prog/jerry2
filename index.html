@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>張俊宇SDGs 性別平權</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Microsoft JhengHei', sans-serif; }
+        body { background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 50%, #90EE90 50%, #228B22 100%); min-height: 100vh; overflow-x: hidden; position: relative; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: rgba(255, 255, 255, 0.9); box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        h1.title { font-size: 28px; font-weight: bold; color: #2C3E50; display: flex; align-items: center; gap: 10px; }
+        h1.title span { background: #FF6B6B; color: white; font-size: 14px; padding: 4px 10px; border-radius: 20px; }
+        .score-board { font-size: 20px; font-weight: bold; color: #27AE60; background: #E8F8F5; padding: 8px 20px; border-radius: 30px; border: 2px solid #27AE60; }
+        .map-container { position: relative; width: 100%; max-width: 1200px; height: 600px; margin: 20px auto; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect width="1200" height="600" fill="%23228B22" opacity="0.1"/></svg>') center/cover; }
+        .hut { position: absolute; cursor: pointer; transition: transform 0.3s, filter 0.3s; text-align: center; z-index: 50; }
+        .hut:hover { transform: scale(1.15); filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); }
+        .hut svg { width: 90px; height: 90px; }
+        .hut .badge { background: #FFD700; color: #333; font-weight: bold; font-size: 14px; padding: 2px 8px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: inline-block; margin-top: -10px; }
+        .hut.completed-correct { filter: hue-rotate(90deg) brightness(1.1); pointer-events: none; opacity: 0.8; }
+        .hut.completed-wrong { filter: grayscale(80%) sepia(1) hue-rotate(-50deg); pointer-events: none; opacity: 0.8; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.3s; }
+        .modal-content { background: white; width: 90%; max-width: 550px; padding: 35px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center; position: relative; }
+        .modal-content h2 { color: #2C3E50; margin-bottom: 20px; font-size: 22px; line-height: 1.4; }
+        .options-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+        .option-btn { background: #F8F9F9; border: 2px solid #CBD5E1; padding: 15px 20px; border-radius: 12px; font-size: 16px; cursor: pointer; text-align: left; transition: all 0.2s; color: #334155; font-weight: 500; }
+        .option-btn:hover { background: #E2E8F0; border-color: #94A3B8; transform: translateY(-2px); }
+        .result-msg { margin-top: 20px; font-size: 18px; font-weight: bold; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 class="title">張俊宇SDGs 性別平權 <span>第一關：村莊探險</span></h1>
+        <div class="score-board" id="scoreDisplay">答對題數：0 / 10</div>
+    </header>
+    <div class="map-container" id="mapContainer"></div>
+
+    <div class="modal" id="quizModal">
+        <div class="modal-content">
+            <h2 id="questionText">載入題目中...</h2>
+            <div class="options-list" id="optionsList"></div>
+            <div id="resultFeedback" class="result-msg"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="finishModal">
+        <div class="modal-content">
+            <h2 id="finishTitle">關卡結算</h2>
+            <p id="finishDesc" style="font-size: 18px; color: #475569; margin: 15px 0;"></p>
+            <div id="finishAction" style="margin-top: 25px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            { q: "1. 在家庭分工中，下列哪一項觀念最符合性別平權？", options: ["家務應由女性全權負責", "家務與育兒應由家庭成員共同分攤", "男生賺錢養家就好，不用做家事"], answer: 1, explanation: "家務與育兒不分性別，應由成員共同協力分擔。" },
+            { q: "2. 關於職場上的性別平等，下列敘述何者正確？", options: ["主管職應該優先由男性擔任", "男女雙方在相同工作表現下應享有同工同酬", "女性不適合擔任工程師或領導者"], answer: 1, explanation: "同工同酬與平等的升遷機會是職場性別平權的核心。" },
+            { q: "3. 學校舉辦社團招生，下列哪一種做法違反性別平權？", options: ["規定男生只能參加籃球社，女生只能參加家政社", "鼓勵學生依據興趣自由選擇任何社團", "男女生皆可共同組隊參加機器人競賽"], answer: 0, explanation: "以性別限制社團選擇會加深刻板印象。" },
+            { q: "4. 當看見「男生不能哭、要堅強」的說法時，較正確的理解是？", options: ["這是正確的，男生本來就不能流淚", "每個人無論性別都有表達情感與悲傷的權利", "哭泣是女生專有的權利"], answer: 1, explanation: "情感表達不分性別，不應受性別刻板印象束縛。" },
+            { q: "5. SDGs 目標 5 (SDG 5) 的核心宗旨是什麼？", options: ["消除貧窮與飢餓", "實現性別平等，並賦權所有女性", "保護海洋生態資源"], answer: 1, explanation: "SDG 5 專門聚焦於實現性別平等與賦權所有婦女及女孩。" },
+            { q: "6. 在挑選玩具或職業志向時，下列哪種觀念最健康？", options: ["男生玩機器人，女生玩洋娃娃是唯一標準", "不應受性別框架限制，勇敢追求自己的興趣", "女生不適合學習數學與科學"], answer: 1, explanation: "興趣與志向無分性別，每個人都能多元發展。" },
+            { q: "7. 職場上若遇到性騷擾或不平等的對待，正確的態度是？", options: ["默默忍耐，不要張揚", "勇敢拒絕並尋求法律與制度的協助與保護", "這很常見，不需要理會"], answer: 1, explanation: "面對不平等與性騷擾應勇敢維護權益並尋求協助。" },
+            { q: "8. 關於「陽剛氣質」與「陰柔氣質」，下列何者正確？", options: ["只有陽剛氣質才是優秀的", "兩者皆無高低優劣之分，每個人都能展現多元特質", "男生不能展現溫柔體貼的特質"], answer: 1, explanation: "人類的性格特質多元，不應用性別二分法來定義價值。" },
+            { q: "9. 聯合國推動性別平權的目的，主要是為了？", options: ["讓某個特定性別享有更多特權", "促進社會公平正義，讓所有人都能發揮最大潛能", "限制人們的自由發展"], answer: 1, explanation: "平等的目的在於消除障礙，讓所有人都能公平發展。" },
+            { q: "10. 下列哪一項行為體現了對多元性別與平權的尊重？", options: ["嘲笑與自己性別表現不同的人", "尊重每個人的獨特性與平等權利", "強迫所有人符合傳統的性別角色"], answer: 1, explanation: "尊重包容、欣賞差異是性別平權社會的基礎。" }
+        ];
+
+        let score = 0;
+        let answeredCount = 0;
+        let currentActiveHut = null;
+
+        const mapContainer = document.getElementById('mapContainer');
+        const hutPositions = [
+            { top: '15%', left: '10%' }, { top: '25%', left: '32%' }, { top: '12%', left: '55%' }, { top: '22%', left: '78%' },
+            { top: '48%', left: '20%' }, { top: '55%', left: '45%' }, { top: '50%', left: '70%' },
+            { top: '75%', left: '15%' }, { top: '80%', left: '40%' }, { top: '78%', left: '68%' }
+        ];
+
+        function initMap() {
+            mapContainer.innerHTML = '';
+            questions.forEach((q, index) => {
+                const hut = document.createElement('div');
+                hut.className = 'hut';
+                hut.style.top = hutPositions[index].top;
+                hut.style.left = hutPositions[index].left;
+                hut.innerHTML = `
+                    <svg viewBox="0 0 100 100">
+                        <polygon points="50,10 90,45 10,45" fill="%23D35400"/>
+                        <rect x="25" y="45" width="50" height="45" fill="%23FAD7A0"/>
+                        <rect x="42" y="60" width="16" height="30" fill="%2378281F"/>
+                    </svg>
+                    <div class="badge">茅草屋 ${index + 1}</div>
+                `;
+                hut.onclick = () => openQuiz(index, hut);
+                mapContainer.appendChild(hut);
+            });
+        }
+
+        function openQuiz(index, hutElement) {
+            currentActiveHut = hutElement;
+            const qData = questions[index];
+            document.getElementById('questionText').innerText = qData.q;
+            document.getElementById('resultFeedback').innerText = '';
+            
+            const optionsList = document.getElementById('optionsList');
+            optionsList.innerHTML = '';
+            
+            qData.options.forEach((opt, optIdx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(optIdx, qData.answer, qData.explanation);
+                optionsList.appendChild(btn);
+            });
+            
+            document.getElementById('quizModal').style.display = 'flex';
+        }
+
+        function checkAnswer(selected, correct, explanation) {
+            const feedback = document.getElementById('resultFeedback');
+            const options = document.querySelectorAll('.option-btn');
+            options.forEach(b => b.disabled = true);
+
+            if (selected === correct) {
+                score++;
+                document.getElementById('scoreDisplay').innerText = `答對題數：${score} / 10`;
+                feedback.innerHTML = `<span style="color: #27AE60;">✔ 答對了！${explanation}</span>`;
+                currentActiveHut.classList.add('completed-correct');
+            } else {
+                feedback.innerHTML = `<span style="color: #E74C3C;">✖ 答錯了！${explanation}</span>`; currentActiveHut.classList.add('completed-wrong'); }  answeredCount++; setTimeout(() => { document.getElementById('quizModal').style.display = 'none'; if (answeredCount === questions.length) { showFinishModal(); } }, 2000); }  function showFinishModal() { const finishModal = document.getElementById('finishModal'); const title = document.getElementById('finishTitle'); const desc = document.getElementById('finishDesc'); const action = document.getElementById('finishAction');  if (score >= 8) { title.innerText = "🎉 恭喜通過第一關！"; desc.innerHTML = `你總共答對了 <b>${score}</b> 題（達標 8 題以上）。做得好！`;
+                action.innerHTML = `<a href="level2.html" style="background: #27AE60; color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-size: 18px; font-weight: bold; box-shadow: 0 5px 15px rgba(39,174,96,0.4);">前往下一關 ➔</a>`;
+            } else {
+                title.innerText = "💪 挑戰未達標";
+                desc.innerHTML = `你總共答對了 <b>${score}</b> 題（需答對 8 題以上才能通關）。再試一次看看吧！`;
+                action.innerHTML = `<button onclick="location.reload()" style="background: #E74C3C; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(231,76,60,0.4);">重新挑戰</button>`;
+            }
+            finishModal.style.display = 'flex';
+        }
+
+        initMap();
+    </script>
+</body>
+</html>

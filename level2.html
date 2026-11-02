@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDGs 性別平權-情境題</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Microsoft JhengHei', sans-serif; }
+        body { background: linear-gradient(to bottom, #FFE5B4 0%, #FFD1DC 50%, #B4EEB4 100%); min-height: 100vh; overflow-x: hidden; position: relative; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: rgba(255, 255, 255, 0.9); box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        h1.title { font-size: 26px; font-weight: bold; color: #D9534F; display: flex; align-items: center; gap: 10px; }
+        h1.title span { background: #E67E22; color: white; font-size: 14px; padding: 4px 10px; border-radius: 20px; }
+        .score-board { font-size: 20px; font-weight: bold; color: #C0392B; background: #FDEDEC; padding: 8px 20px; border-radius: 30px; border: 2px solid #E74C3C; }
+        .park-container { position: relative; width: 100%; max-width: 1200px; height: 550px; margin: 20px auto; }
+        .flower { position: absolute; cursor: pointer; transition: transform 0.3s, filter 0.3s; text-align: center; z-index: 50; animation: floatFlower 3s ease-in-out infinite; }
+        .flower:hover { transform: scale(1.2); filter: drop-shadow(0 0 10px #FF69B4); }
+        .flower svg { width: 85px; height: 85px; }
+        .flower .label { background: #FFF; color: #C0392B; font-weight: bold; font-size: 14px; padding: 2px 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: inline-block; margin-top: -5px; border: 2px solid #FF69B4; }
+        .flower.completed { filter: grayscale(100%) opacity(0.6); pointer-events: none; }
+        @keyframes floatFlower { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: #FFF; width: 95%; max-width: 650px; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center; }
+        .drop-zones { display: flex; justify-content: space-around; margin: 20px 0; gap: 20px; }
+        .drop-zone { flex: 1; min-height: 160px; border: 3px dashed #CBD5E1; border-radius: 15px; padding: 15px; background: #F8FAFC; text-align: left; }
+        .drop-zone h3 { text-align: center; margin-bottom: 10px; font-size: 16px; color: #334155; }
+        .drag-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; min-height: 90px; padding: 10px; background: #EDF2F7; border-radius: 12px; }
+        .drag-item { background: #3B82F6; color: white; padding: 12px 15px; border-radius: 10px; cursor: grab; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); user-select: none; }
+        .drag-item:active { cursor: grabbing; }
+        .submit-btn { background: #10B981; color: white; border: none; padding: 12px 35px; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.4); }
+        .submit-btn:hover { background: #059669; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 class="title">SDGs 性別平權-情境題 <span>第二關：遊樂園挑戰</span></h1>
+        <div class="score-board" id="scoreDisplay">答對題數：0 / 6</div>
+    </header>
+    
+    <div class="park-container" id="parkContainer"></div>
+
+    <div class="modal" id="quizModal">
+        <div class="modal-content">
+            <h2 id="flowerTitle" style="color: #2C3E50; margin-bottom: 15px;">遊樂園情境題組</h2>
+            <p style="font-size: 14px; color: #64748B; margin-bottom: 15px;">請將下方的行為或語句卡片，分別拖曳放入正確的分類框中：</p>
+            
+            <div class="drag-items" id="dragSource" ondragover="allowDrop(event)" ondrop="dropToSource(event)"></div>
+
+            <div class="drop-zones">
+                <div class="drop-zone" id="zoneEqual" ondragover="allowDrop(event)" ondrop="dropToZone(event, 'equal')">
+                    <h3 style="color: #27AE60;">✔ 性別平等</h3>
+                </div>
+                <div class="drop-zone" id="zoneUnequal" ondragover="allowDrop(event)" ondrop="dropToZone(event, 'unequal')">
+                    <h3 style="color: #C0392B;">✖ 性別不平等</h3>
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="submitFlowerQuiz()">確認送出分類</button>
+        </div>
+    </div>
+
+    <div class="modal" id="finishModal">
+        <div class="modal-content">
+            <h2 id="finishTitle" style="font-size: 24px; margin-bottom: 15px;">關卡總結算</h2>
+            <p id="finishDesc" style="font-size: 18px; color: #475569; margin: 15px 0;"></p>
+            <div id="finishAction" style="margin-top: 25px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const flowerData = [
+            { id: 0, top: '25%', left: '15%', name: '摩天輪花園', items: [ { text: "男女薪資同酬且升遷機會均等", type: "equal" }, { text: "認為女生不適合擔任主管職", type: "unequal" } ] },
+            { id: 1, top: '35%', left: '55%', name: '旋轉木馬花園', items: [ { text: "家務與育兒由伴侶雙方共同分擔", type: "equal" }, { text: "覺得做家事是女生的天職", type: "unequal" } ] },
+            { id: 2, top: '65%', left: '35%', name: '海盜船花園', items: [ { text: "鼓勵男孩勇敢表達情感與哭泣", type: "equal" }, { text: "嘲笑男生參與烹飪或美勞社團", type: "unequal" } ] }
+        ];
+
+        let totalCorrect = 0;
+        let completedFlowers = 0;
+        let activeFlowerIndex = null;
+        let currentFlowerAnswers = { equal: [], unequal: [] };
+
+        const parkContainer = document.getElementById('parkContainer');
+
+        function initPark() {
+            parkContainer.innerHTML = '';
+            flowerData.forEach((flower, idx) => {
+                const fDiv = document.createElement('div');
+                fDiv.className = 'flower';
+                fDiv.style.top = flower.top;
+                fDiv.style.left = flower.left;
+                fDiv.id = `flower-${idx}`;
+                fDiv.innerHTML = `
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="18" fill="%23FFD700"/>
+                        <circle cx="50" cy="22" r="16" fill="%23FF69B4"/>
+                        <circle cx="50" cy="78" r="16" fill="%23FF69B4"/>
+                        <circle cx="22" cy="50" r="16" fill="%23FF69B4"/>
+                        <circle cx="78" cy="50" r="16" fill="%23FF69B4"/>
+                        <circle cx="50" cy="50" r="10" fill="%23FFA500"/>
+                    </svg>
+                    <div class="label">${flower.name}</div>
+                `;
+                fDiv.onclick = () => openFlowerModal(idx);
+                parkContainer.appendChild(fDiv);
+            });
+        }
+
+        function openFlowerModal(idx) {
+            activeFlowerIndex = idx;
+            const flower = flowerData[idx];
+            document.getElementById('flowerTitle').innerText = `🌸 ${flower.name} 題組`;
+            
+            currentFlowerAnswers = { equal: [], unequal: [] };
+            
+            const dragSource = document.getElementById('dragSource');
+            dragSource.innerHTML = '';
+            
+            // 隨機打散選項順序
+            const shuffledItems = [...flower.items].sort(() => Math.random() - 0.5);
+            shuffledItems.forEach((item, i) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'drag-item';
+                itemDiv.draggable = true;
+                itemDiv.innerText = item.text;
+                itemDiv.dataset.type = item.type;
+                itemDiv.id = `drag-${idx}-${i}`;
+                itemDiv.ondragstart = (e) => e.dataTransfer.setData('text/plain', e.target.id);
+                dragSource.appendChild(itemDiv);
+            });
+
+            document.getElementById('zoneEqual').innerHTML = '<h3 style="color: #27AE60;">✔ 性別平等</h3>';
+            document.getElementById('zoneUnequal').innerHTML = '<h3 style="color: #C0392B;">✖ 性別不平等</h3>';
+            
+            document.getElementById('quizModal').style.display = 'flex';
+        }
+
+        function allowDrop(ev) { ev.preventDefault(); }
+
+        function dropToSource(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData('text/plain');
+            const el = document.getElementById(data);
+            document.getElementById('dragSource').appendChild(el);
+        }
+
+        function dropToZone(ev, zoneType) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData('text/plain');
+            const el = document.getElementById(data);
+            ev.currentTarget.appendChild(el);
+        }
+
+        function submitFlowerQuiz() {
+            const zoneEqual = document.getElementById('zoneEqual');
+            const zoneUnequal = document.getElementById('zoneUnequal');
+            
+            const equalCards = zoneEqual.getElementsByClassName('drag-item');
+            const unequalCards = zoneUnequal.getElementsByClassName('drag-item');
+
+            let flowerCorrectCount = 0;
+            
+            Array.from(equalCards).forEach(card => {
+                if (card.dataset.type === 'equal') flowerCorrectCount++;
+            });
+            Array.from(unequalCards).forEach(card => {
+                if (card.dataset.type === 'unequal') flowerCorrectCount++;
+            });
+
+            totalCorrect += flowerCorrectCount;
+            completedFlowers++;
+            document.getElementById('scoreDisplay').innerText = `答對題數：${totalCorrect} / 6`;
+
+            document.getElementById(`flower-${activeFlowerIndex}`).classList.add('completed');
+            document.getElementById('quizModal').style.display = 'none';
+
+            if (completedFlowers === flowerData.length) {
+                showFinalResult();
+            }
+        }
+
+        function showFinalResult() {
+            const modal = document.getElementById('finishModal');
+            const title = document.getElementById('finishTitle');
+            const desc = document.getElementById('finishDesc');
+            const action = document.getElementById('finishAction');
+
+            let rank = "";
+            if (totalCorrect <= 3) {
+                rank = "再加油 💪";
+                desc.innerHTML = `總答對 <b>${totalCorrect}</b> 題。<br>評等結果：<span style="color:#E74C3C; font-weight:bold;">再加油</span>`;
+                action.innerHTML = `<button onclick="location.reload()" style="background: #E74C3C; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer;">再次挑戰</button>`;
+            } else if (totalCorrect <= 5) {
+                rank = "進步中 ⭐";
+                desc.innerHTML = `總答對 <b>${totalCorrect}</b> 題。<br>評等結果：<span style="color:#F39C12; font-weight:bold;">進步中</span>`;
+                action.innerHTML = `<button onclick="location.reload()" style="background: #F39C12; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer;">再次挑戰</button>`;
+            } else {
+                rank = "平權達人 🏆";
+                desc.innerHTML = `總答對 <b>6</b> 題全對！<br>評等結果：<span style="color:#27AE60; font-weight:bold; font-size: 20px;">平權達人 🎉</span>`;
+                action.innerHTML = `<a href="certificate.html" style="background: #27AE60; color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-size: 18px; font-weight: bold; box-shadow: 0 5px 15px rgba(39,174,96,0.4);">下載學習證書 ➔</a>`;
+            }
+            modal.style.display = 'flex';
+        }
+
+        initPark();
+    </script>
+</body>
+</html>
